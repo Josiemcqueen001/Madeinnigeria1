@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><title>Made in Bayelsa setup</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#f4f7f4;color:#1b2a21;font-size:16px}
+main{max-width:520px;margin:0 auto;padding:20px 16px 60px}
+.card{background:#fff;border:1px solid #dfe3dc;border-radius:14px;padding:16px;margin:0 0 14px}
+h1{font-size:22px;margin:8px 0 4px}h2{font-size:17px;margin:0 0 6px}p{color:#5b6a62;font-size:14px;margin:4px 0 10px}
+label{display:block;font-size:14px;color:#5b6a62;margin-top:8px}
+input{width:100%;box-sizing:border-box;padding:10px;margin:4px 0;border:1px solid #dfe3dc;border-radius:10px;font-size:16px}
+button{width:100%;padding:13px;border:0;border-radius:12px;background:#0d6b3c;color:#fff;font-size:16px;font-weight:700;margin-top:10px}
+.row{border-top:1px solid #dfe3dc;margin-top:12px;padding-top:6px}.out{font-size:14px;line-height:1.7;white-space:pre-wrap}
+</style></head><body><main>
+<h1>Set up Made in Bayelsa</h1>
+<p>Do this once. It builds the database and creates your first accounts. Nothing here is saved in your browser.</p>
+<div class="card"><h2>1. Your setup key</h2><p>The long secret you saved as SETUP_KEY in Netlify.</p>
+<input id="key" type="password" autocomplete="off" placeholder="Setup key">
+<button onclick="step('migrate')">Build the database</button><div id="o1" class="out"></div></div>
+<div class="card"><h2>2. Create the accounts</h2>
+<p>Each starts with the password you type here, and must choose its own password at first sign-in. Only works until a super admin exists.</p>
+<div id="rows"></div><button onclick="step('accounts')">Create accounts</button><div id="o2" class="out"></div></div>
+<div class="card"><h2>3. Restore a super admin</h2>
+<p>Use this if sign-in does not work. Only the two owner emails (sinteijosephine2@gmail.com and josephinesinteh@gmail.com) are allowed. It makes the email you enter a protected super admin and sets the password you type. You will choose a new password after you sign in.</p>
+<label>Super admin email</label><input id="re" type="email" autocomplete="off" value="sinteijosephine2@gmail.com">
+<label>Name</label><input id="rn" autocomplete="off" value="Josephine Sintei">
+<label>Temporary password</label><input id="rp" type="password" autocomplete="new-password">
+<button onclick="step('recover')">Restore super admin</button> <p>Do this once for each of the two emails.</p><div id="o3" class="out"></div></div>
+<p>When both steps say done, delete SETUP_KEY in Netlify. This page then stops working.</p>
+<script>
+const roles=[["super_admin","Super admin"],["admin","Admin"],["seller","Seller"],["customer","Buyer"]];
+document.getElementById('rows').innerHTML=roles.map(([r,l],i)=>`<div class="row"><b>${l}</b><label>Email</label><input id="e${i}" type="email" autocomplete="off"><label>Name</label><input id="n${i}" autocomplete="off"><label>Temporary password</label><input id="p${i}" type="password" autocomplete="new-password"></div>`).join('');
+async function step(a){
+  const o=document.getElementById(a==='migrate'?'o1':a==='recover'?'o3':'o2');o.textContent='Working...';
+  const body={key:document.getElementById('key').value,action:a};
+  if(a==='accounts')body.accounts=roles.map(([r],i)=>({role:r,email:document.getElementById('e'+i).value,name:document.getElementById('n'+i).value,password:document.getElementById('p'+i).value}));
+  if(a==='recover'){body.email=document.getElementById('re').value;body.name=document.getElementById('rn').value;body.password=document.getElementById('rp').value;}
+  try{const r=await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();
+    o.textContent=!r.ok?d.error:a==='migrate'?(d.applied.length?'Done. Built: '+d.applied.join(', '):'Done. The database was already up to date.'):'Done.\n'+d.results.join('\n');
+    if(r.ok&&(a==='accounts'||a==='recover'))document.querySelectorAll('input[type=password]').forEach(x=>{if(x.id!=='key')x.value=''});
+  }catch(e){o.textContent='Could not reach the server.';}
+}
+</script></main></body></html>
